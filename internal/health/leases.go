@@ -55,15 +55,17 @@ func (p *LeasePool) Peak() int {
 	return p.peak
 }
 
-// RunLeasedChecks releases each lease before starting the next target.
+// RunLeasedChecks runs one probe at a time, releasing each lease before the
+// next target begins. Sequential sweeps therefore never hold more than one
+// lease at once, so a limit of N comfortably covers N targets checked in turn.
 func RunLeasedChecks(ctx context.Context, pool *LeasePool, targets []Target, check func(Target) error) error {
 	for _, target := range targets {
 		release, err := pool.Acquire(ctx)
 		if err != nil {
 			return err
 		}
-		defer release()
 		err = check(target)
+		release()
 		if err != nil {
 			return err
 		}

@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"loadbalancer/internal/health"
@@ -57,13 +56,11 @@ func (s *Service) ResolveWithRetry(ctx context.Context, max int, attempt func(co
 	return commit(selected)
 }
 
-// RunHealthSweep owns one resource-bounded sequential probe pass.
+// RunHealthSweep owns one resource-bounded sequential probe pass. Each lease
+// is released before the next target begins, so sequential sweeps never hold
+// more than one lease and a third target can always be acquired.
 func (s *Service) RunHealthSweep(ctx context.Context, pool *health.LeasePool, targets []health.Target, check func(health.Target) error) error {
-	err := health.RunLeasedChecks(ctx, pool, targets, check)
-	if errors.Is(err, health.ErrLeaseLimit) {
-		return health.RunLeasedChecks(ctx, pool, targets, check)
-	}
-	return err
+	return health.RunLeasedChecks(ctx, pool, targets, check)
 }
 
 // AuditRequest snapshots request-owned data before handing it to asynchronous work.
