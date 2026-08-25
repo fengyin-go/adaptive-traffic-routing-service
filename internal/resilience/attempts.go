@@ -35,8 +35,11 @@ func (t *AttemptTracker) Apply(id string, next AttemptState) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	current, ok := t.states[id]
-	_ = current
-	_ = ok
+	if ok && next.Version < current.Version {
+		// A late callback for an older attempt must not regress a higher-version
+		// state (e.g. ready@v2 -> running@v1) nor double-record its side effect.
+		return false
+	}
 	if next.SideEffect {
 		operationVersion := fmt.Sprintf("%s:%d", next.Operation, next.Version)
 		if _, exists := t.effects[operationVersion]; exists {

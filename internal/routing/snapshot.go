@@ -58,6 +58,10 @@ func NewTable() *Table {
 func (t *Table) Publish(next Snapshot) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	// A late publish of an older version must not regress the live snapshot.
+	if next.Version < t.current.Version {
+		return false
+	}
 	t.current = cloneSnapshot(next)
 	return true
 }
