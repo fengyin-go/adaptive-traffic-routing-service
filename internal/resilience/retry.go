@@ -36,7 +36,23 @@ func Retry(ctx context.Context, max int, work func(context.Context, int) error) 
 		if !ok {
 			return last
 		}
-		time.Sleep(temporary.After)
+		// Honor cancellation mid-backoff instead of sleeping the full wait.
+		if !sleep(ctx, temporary.After) {
+			return ctx.Err()
+		}
 	}
 	return last
+}
+
+// sleep waits for d and reports whether it elapsed. It returns false as soon as
+// ctx is cancelled, so a retry backoff never outlives the request that owns it.
+func sleep(ctx context.Context, d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }

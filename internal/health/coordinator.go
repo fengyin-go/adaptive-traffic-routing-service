@@ -34,7 +34,10 @@ func NewCoordinator(checker Checker) *Coordinator {
 }
 
 func (c *Coordinator) ProbeBatch(ctx context.Context, targets []Target) ([]Result, error) {
-	batchCtx, cancel := context.WithCancel(context.Background())
+	// Derive the worker context from the caller's ctx so that cancelling the
+	// request propagates to the probe goroutines instead of leaving them
+	// orphaned on context.Background().
+	batchCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	results := make(chan Result, len(targets))
