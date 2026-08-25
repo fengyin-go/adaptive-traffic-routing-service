@@ -18,7 +18,11 @@ func NewBuilder(source Source, cache *Cache) *Builder {
 func (b *Builder) Build(key string) (runtime *Runtime, err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			b.cache.Store(key, runtime)
+			// A failed build must never surface or cache a partial runtime:
+			// discard the half-built value so callers only observe the error,
+			// and never seed the cache with an incomplete configuration that a
+			// later lookup would read as if it were valid.
+			runtime = nil
 			err = fmt.Errorf("build runtime %q: %v", key, recovered)
 		}
 	}()
